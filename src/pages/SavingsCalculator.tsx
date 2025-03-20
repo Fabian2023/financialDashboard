@@ -6,11 +6,12 @@ import { SavingsGoal } from "@/lib/types";
 import { toast } from "sonner";
 
 interface WebhookResponse {
-  "Cantidad mensual de ahorro requerida": number;
-  "Fecha proyectada de finalización": string;
-  "Recomendaciones de reducción de gastos": {
+  "Cantidad mensual de ahorro requerida"?: number;
+  "Fecha proyectada de finalización"?: string;
+  "Recomendaciones de reducción de gastos"?: {
     [category: string]: string | { categoria?: string; sugerencia?: string } | object;
   };
+  output?: string;  // For handling alternative response format
 }
 
 const SavingsCalculator = () => {
@@ -45,7 +46,7 @@ const SavingsCalculator = () => {
       const data: WebhookResponse = await response.json();
       console.log("Webhook response:", data);
       
-      // Guarda la respuesta original
+      // Store the raw response
       setRawResponse(data);
       
       // Extract purpose from query
@@ -56,55 +57,73 @@ const SavingsCalculator = () => {
       }
       
       // Parse amount from user query to use as target amount
-      const amountMatch = userQuery.match(/\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/);
+      const amountMatch = userQuery.match(/\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d+)/);
       const targetAmount = amountMatch 
         ? parseInt(amountMatch[1].replace(/[.,]/g, "")) 
         : 5000000;
       
       // Format recommendations from webhook response
       const recommendations: string[] = [];
-      const recsData = data["Recomendaciones de reducción de gastos"];
       
-      if (recsData) {
-        Object.keys(recsData).forEach(key => {
-          const item = recsData[key];
-          if (typeof item === 'string') {
-            recommendations.push(item);
-          } else if (typeof item === 'object' && item !== null) {
-            if ('sugerencia' in item && typeof item.sugerencia === 'string') {
-              recommendations.push(item.sugerencia);
-            } else if ('categoria' in item && 'sugerencia' in item) {
-              const categoria = item.categoria;
-              const sugerencia = item.sugerencia;
-              if (typeof categoria === 'string' && typeof sugerencia === 'string') {
-                recommendations.push(`${categoria}: ${sugerencia}`);
+      // Check which format we received and process accordingly
+      if (data.output) {
+        // Handle free text output format
+        const recs = data.output.split('\n').filter(line => 
+          line.includes('-') && (line.includes('gasto') || line.includes('ahorro'))
+        );
+        recommendations.push(...recs.map(rec => rec.trim()));
+      } else if (data["Recomendaciones de reducción de gastos"]) {
+        // Handle structured format
+        const recsData = data["Recomendaciones de reducción de gastos"];
+        
+        if (recsData) {
+          Object.keys(recsData).forEach(key => {
+            const item = recsData[key];
+            if (typeof item === 'string') {
+              recommendations.push(item);
+            } else if (typeof item === 'object' && item !== null) {
+              if ('sugerencia' in item && typeof item.sugerencia === 'string') {
+                recommendations.push(item.sugerencia);
+              } else if ('categoria' in item && 'sugerencia' in item) {
+                const categoria = item.categoria;
+                const sugerencia = item.sugerencia;
+                if (typeof categoria === 'string' && typeof sugerencia === 'string') {
+                  recommendations.push(`${categoria}: ${sugerencia}`);
+                }
               }
             }
-          }
-        });
+          });
+        }
       }
       
-      // Create date object from the string date
-      const dateStr = data["Fecha proyectada de finalización"];
-      const dateParts = dateStr.split('/');
+      // Create date object if we have a date string
       let targetDate: Date | undefined;
       
-      if (dateParts.length === 3) {
-        targetDate = new Date(
-          parseInt(dateParts[2]), // Year
-          parseInt(dateParts[1]) - 1, // Month (0-indexed)
-          parseInt(dateParts[0]) // Day
-        );
+      if (data["Fecha proyectada de finalización"]) {
+        // Just use the string directly, we'll handle formatting in the ResultsPanel
+        const dateStr = data["Fecha proyectada de finalización"];
+        
+        // Try to parse it as a date if it looks like a date format
+        if (dateStr.includes('/')) {
+          const dateParts = dateStr.split('/');
+          if (dateParts.length === 3) {
+            targetDate = new Date(
+              parseInt(dateParts[2]), // Year
+              parseInt(dateParts[1]) - 1, // Month (0-indexed)
+              parseInt(dateParts[0]) // Day
+            );
+          }
+        }
       }
       
-      // Create result object
+      // Create result object with a fallback for monthly savings amount
       const savingsGoal: SavingsGoal = {
         id: "goal-1",
         name: purpose,
         targetAmount: targetAmount,
         currentAmount: 0,
         deadline: targetDate,
-        monthlySavingAmount: data["Cantidad mensual de ahorro requerida"],
+        monthlySavingAmount: data["Cantidad mensual de ahorro requerida"] || 0,
         recommendations: recommendations.length > 0 ? recommendations : [
           "Reduce gastos en entretenimiento en un 15% para aumentar tu capacidad de ahorro.",
           "Considera usar una cuenta de ahorro con mayor rendimiento para tu meta.",

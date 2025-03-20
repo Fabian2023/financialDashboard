@@ -43,7 +43,9 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
             <div>
               <h4 className="text-sm font-medium text-gray-500">Ahorro Mensual</h4>
               <p className="text-xl font-bold text-finance-blue">
-                {rawResponse ? formatCurrency(rawResponse["Cantidad mensual de ahorro requerida"]) : formatCurrency(goal.monthlySavingAmount || 0)}
+                {rawResponse && rawResponse["Cantidad mensual de ahorro requerida"] 
+                  ? formatCurrency(rawResponse["Cantidad mensual de ahorro requerida"]) 
+                  : formatCurrency(goal.monthlySavingAmount || 0)}
               </p>
             </div>
           </div>
@@ -79,7 +81,9 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
             <div>
               <h4 className="text-sm font-medium text-gray-500">Fecha Proyectada</h4>
               <p className="text-xl font-bold text-blue-600">
-                {rawResponse ? rawResponse["Fecha proyectada de finalización"] : completionDate}
+                {rawResponse && rawResponse["Fecha proyectada de finalización"] 
+                  ? rawResponse["Fecha proyectada de finalización"] 
+                  : completionDate}
               </p>
             </div>
           </div>
@@ -109,7 +113,7 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
         </div>
       )}
 
-      {/* Debug section - opcional, puedes eliminar en producción */}
+      {/* Debug section - for development only */}
       {rawResponse && process.env.NODE_ENV === 'development' && (
         <div className="mt-6 p-4 bg-gray-100 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Respuesta del Webhook:</h4>
