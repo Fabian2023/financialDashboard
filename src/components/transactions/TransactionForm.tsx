@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -22,13 +21,16 @@ import { CalendarIcon, Plus, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Transaction, Category, Account, PaymentMethod } from "@/lib/types";
 import { formatDate } from "@/lib/formatters";
-import { accounts, categories } from "@/lib/mockData";
+import { useTransactionsData } from "@/hooks/useTransactionsData";
+import { supabase } from "@/integrations/supabase/client";
 
 type TransactionFormProps = {
   onSubmit: (transaction: Omit<Transaction, "id">) => void;
 };
 
 const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
+  const { categories, accounts } = useTransactionsData();
+  
   const [type, setType] = useState<"income" | "expense">("expense");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -39,9 +41,10 @@ const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
   const [notes, setNotes] = useState("");
   const [receipt, setReceipt] = useState<File | null>(null);
   const [newCategory, setNewCategory] = useState("");
-  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryColor, setNewCategoryColor] = useState("#1A5F7A");
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!description || !categoryId || !accountId || !date || !amount || !paymentMethod) {
@@ -64,6 +67,30 @@ const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
       return;
     }
     
+    let receiptUrl: string | undefined = undefined;
+    
+    if (receipt) {
+      try {
+        const filename = `${Date.now()}_${receipt.name}`;
+        const { data, error } = await supabase.storage
+          .from('receipts')
+          .upload(filename, receipt);
+          
+        if (error) {
+          console.error('Error uploading receipt:', error);
+          toast.error('Error al subir el recibo: ' + error.message);
+        } else if (data) {
+          const { data: urlData } = supabase.storage
+            .from('receipts')
+            .getPublicUrl(data.path);
+            
+          receiptUrl = urlData.publicUrl;
+        }
+      } catch (err) {
+        console.error('Error uploading receipt:', err);
+      }
+    }
+    
     const transaction: Omit<Transaction, "id"> = {
       type,
       description,
@@ -73,11 +100,10 @@ const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
       amount: amountValue,
       paymentMethod,
       notes: notes || undefined,
-      receiptUrl: receipt ? URL.createObjectURL(receipt) : undefined,
+      receiptUrl
     };
     
     onSubmit(transaction);
-    toast.success("Transacción guardada exitosamente");
     
     // Reset form
     setDescription("");
@@ -87,11 +113,34 @@ const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
     setReceipt(null);
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (newCategory.trim()) {
-      toast.success(`Nueva categoría "${newCategory}" añadida`);
-      setNewCategory("");
-      setShowNewCategory(false);
+      setIsCreatingCategory(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .insert({
+            name: newCategory.trim(),
+            color: newCategoryColor
+          })
+          .select()
+          .single();
+          
+        if (error) {
+          toast.error(`Error al añadir categoría: ${error.message}`);
+        } else if (data) {
+          toast.success(`Nueva categoría "${newCategory}" añadida`);
+          setCategoryId(data.id);
+        }
+      } catch (err) {
+        console.error('Error adding category:', err);
+        toast.error('Error al añadir categoría');
+      } finally {
+        setNewCategory("");
+        setIsCreatingCategory(false);
+        setNewCategoryColor("#1A5F7A");
+      }
     }
   };
 
@@ -212,12 +261,19 @@ const TransactionForm = ({ onSubmit }: TransactionFormProps) => {
                 placeholder="Nombre de nueva categoría"
                 className="flex-1"
               />
+              <input
+                type="color"
+                value={newCategoryColor}
+                onChange={(e) => setNewCategoryColor(e.target.value)}
+                className="w-10 h-10 p-1 border rounded cursor-pointer"
+              />
               <Button 
                 type="button" 
                 size="sm" 
                 onClick={handleAddCategory}
+                disabled={isCreatingCategory}
               >
-                Añadir
+                {isCreatingCategory ? "Añadiendo..." : "Añadir"}
               </Button>
             </div>
           )}

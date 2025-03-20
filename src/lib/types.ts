@@ -1,4 +1,3 @@
-
 export type TransactionType = 'income' | 'expense';
 
 export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'transfer' | 'other';
@@ -51,3 +50,32 @@ export type SavingsGoal = {
     monthlySavingAmount?: number;
     recommendations?: string[];
 };
+
+export interface SupabaseCategory {
+  id: string;
+  name: string;
+  color: string;
+  created_at?: string;
+}
+
+export interface SupabaseAccount {
+  id: string;
+  name: string;
+  balance: number;
+  type: 'savings' | 'checking' | 'credit' | 'investment' | 'other' | 'cash';
+  created_at?: string;
+}
+
+export interface SupabaseTransaction {
+  id: string;
+  type: TransactionType;
+  description: string;
+  category_id: string;
+  account_id: string;
+  date: string;
+  amount: number;
+  payment_method: PaymentMethod;
+  notes?: string;
+  receipt_url?: string;
+  created_at?: string;
+}
