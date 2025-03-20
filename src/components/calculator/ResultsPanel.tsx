@@ -12,6 +12,7 @@ const ResultsPanel = ({ goal }: ResultsPanelProps) => {
 
   const completionDate = goal.deadline 
     ? new Intl.DateTimeFormat('es-CO', { 
+        day: 'numeric',
         month: 'long', 
         year: 'numeric' 
       }).format(goal.deadline)

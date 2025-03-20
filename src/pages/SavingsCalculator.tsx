@@ -5,6 +5,14 @@ import ResultsPanel from "@/components/calculator/ResultsPanel";
 import { SavingsGoal } from "@/lib/types";
 import { toast } from "sonner";
 
+interface WebhookResponse {
+  "Cantidad mensual de ahorro requerida": number;
+  "Fecha proyectada de finalización": string;
+  "Recomendaciones de reducción de gastos": {
+    [category: string]: string | { categoria?: string; sugerencia?: string } | object;
+  };
+}
+
 const SavingsCalculator = () => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,70 +23,85 @@ const SavingsCalculator = () => {
     document.title = "Calculadora de Ahorros | Dashboard Financiero";
   }, []);
 
-  const handleSubmit = (userQuery: string) => {
+  const handleSubmit = async (userQuery: string) => {
     setQuery(userQuery);
     setLoading(true);
     
-    // Simulate processing time
-    setTimeout(() => {
-      // Parse the query to extract information
-      // This is a simple demo - in a real app, you'd use NLP or a more sophisticated parser
-      try {
-        const amountMatch = userQuery.match(/\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/);
-        const amount = amountMatch 
-          ? parseInt(amountMatch[1].replace(/[.,]/g, "")) 
-          : 5000000;
-        
-        const monthsMatch = userQuery.match(/(\d+)\s*(mes(?:es)?|año(?:s)?)/i);
-        let timeframe = 12; // Default to 12 months
-        
-        if (monthsMatch) {
-          timeframe = parseInt(monthsMatch[1]);
-          // Convert years to months if needed
-          if (monthsMatch[2].startsWith("año")) {
-            timeframe *= 12;
+    try {
+      // Encode the query for URL
+      const encodedQuery = encodeURIComponent(userQuery);
+      const webhookUrl = `https://fabian40.app.n8n.cloud/webhook-test/4f878eb8-15d4-4786-8289-4d11bf0ea939?prompt=${encodedQuery}`;
+      
+      // Call the webhook
+      const response = await fetch(webhookUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status}`);
+      }
+      
+      const data: WebhookResponse = await response.json();
+      
+      // Extract purpose from query
+      let purpose = "tu meta financiera";
+      const purposeMatch = userQuery.match(/para\s+([^,\.]+)/i);
+      if (purposeMatch) {
+        purpose = purposeMatch[1].trim();
+      }
+      
+      // Parse amount from user query to use as target amount
+      const amountMatch = userQuery.match(/\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)/);
+      const targetAmount = amountMatch 
+        ? parseInt(amountMatch[1].replace(/[.,]/g, "")) 
+        : 5000000;
+      
+      // Format recommendations from webhook response
+      const recommendations: string[] = [];
+      const recsData = data["Recomendaciones de reducción de gastos"];
+      
+      Object.keys(recsData).forEach(key => {
+        const item = recsData[key];
+        if (typeof item === 'string') {
+          recommendations.push(item);
+        } else if (typeof item === 'object' && item !== null) {
+          if ('sugerencia' in item && typeof item.sugerencia === 'string') {
+            recommendations.push(item.sugerencia);
+          } else if ('categoria' in item && 'sugerencia' in item) {
+            recommendations.push(`${item.categoria}: ${item.sugerencia}`);
           }
         }
-        
-        // Extract purpose
-        let purpose = "tu meta financiera";
-        const purposeMatch = userQuery.match(/para\s+([^,\.]+)/i);
-        if (purposeMatch) {
-          purpose = purposeMatch[1].trim();
-        }
-        
-        // Calculate monthly amount
-        const monthlySaving = Math.ceil(amount / timeframe);
-        
-        // Calculate target date
-        const targetDate = new Date();
-        targetDate.setMonth(targetDate.getMonth() + timeframe);
-        
-        // Create result object
-        const savingsGoal: SavingsGoal = {
-          id: "goal-1",
-          name: purpose,
-          targetAmount: amount,
-          currentAmount: 0,
-          deadline: targetDate,
-          monthlySavingAmount: monthlySaving,
-          recommendations: [
-            "Reduce gastos en entretenimiento en un 15% para aumentar tu capacidad de ahorro.",
-            "Considera usar una cuenta de ahorro con mayor rendimiento para tu meta.",
-            "Establece transferencias automáticas mensuales por el monto calculado.",
-            "Revisa servicios de suscripción que podrías cancelar temporalmente.",
-            "Destina ingresos extras (bonos, primas) directamente a tu meta de ahorro."
-          ]
-        };
-        
-        setResult(savingsGoal);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error parsing query:", error);
-        toast.error("No pudimos procesar tu consulta. Por favor intenta de nuevo con un formato diferente.");
-        setLoading(false);
-      }
-    }, 1500);
+      });
+      
+      // Create date object from the string date
+      const dateStr = data["Fecha proyectada de finalización"];
+      const dateParts = dateStr.split('/');
+      const targetDate = new Date(
+        parseInt(dateParts[2]), // Year
+        parseInt(dateParts[1]) - 1, // Month (0-indexed)
+        parseInt(dateParts[0]) // Day
+      );
+      
+      // Create result object
+      const savingsGoal: SavingsGoal = {
+        id: "goal-1",
+        name: purpose,
+        targetAmount: targetAmount,
+        currentAmount: 0,
+        deadline: targetDate,
+        monthlySavingAmount: data["Cantidad mensual de ahorro requerida"],
+        recommendations: recommendations.length > 0 ? recommendations : [
+          "Reduce gastos en entretenimiento en un 15% para aumentar tu capacidad de ahorro.",
+          "Considera usar una cuenta de ahorro con mayor rendimiento para tu meta.",
+          "Establece transferencias automáticas mensuales por el monto calculado."
+        ]
+      };
+      
+      setResult(savingsGoal);
+    } catch (error) {
+      console.error("Error fetching data from webhook:", error);
+      toast.error("No pudimos procesar tu consulta. Por favor intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
