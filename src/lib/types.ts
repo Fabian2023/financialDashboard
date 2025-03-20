@@ -1,3 +1,4 @@
+
 export type TransactionType = 'income' | 'expense';
 
 export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'transfer' | 'other';
@@ -12,7 +13,7 @@ export type Account = {
     id: string;
     name: string;
     balance: number;
-    type: 'savings' | 'checking' | 'credit' | 'investment' | 'other';
+    type: 'savings' | 'checking' | 'credit' | 'investment' | 'cash' | 'other';
 };
 
 export type Transaction = {
@@ -62,7 +63,7 @@ export interface SupabaseAccount {
   id: string;
   name: string;
   balance: number;
-  type: 'savings' | 'checking' | 'credit' | 'investment' | 'other' | 'cash';
+  type: 'savings' | 'checking' | 'credit' | 'investment' | 'cash' | 'other';
   created_at?: string;
 }
 

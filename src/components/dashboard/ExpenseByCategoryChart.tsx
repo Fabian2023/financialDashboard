@@ -43,12 +43,12 @@ const ExpenseByCategoryChart = ({ data }: ExpenseByCategoryChartProps) => {
               layout="vertical" 
               verticalAlign="middle" 
               align="right"
-              formatter={(value, entry, index) => {
-                // @ts-ignore - recharts typing issue
-                const { payload } = entry;
+              formatter={(value, entry) => {
+                // We need to access the payload correctly
+                const item = data.find(d => d.category.name === value);
                 return (
                   <span className="text-xs md:text-sm">
-                    {value} ({formatPercentage(payload.percentage)})
+                    {value} ({item ? formatPercentage(item.percentage) : '0%'})
                   </span>
                 );
               }}
