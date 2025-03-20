@@ -34,7 +34,8 @@ const SavingsCalculator = () => {
     try {
       // Encode the query for URL
       const encodedQuery = encodeURIComponent(userQuery);
-      const webhookUrl = `https://fabian40.app.n8n.cloud/webhook-test/4f878eb8-15d4-4786-8289-4d11bf0ea939?prompt=${encodedQuery}`;
+      // Updated to production webhook URL
+      const webhookUrl = `https://fabian40.app.n8n.cloud/webhook/4f878eb8-15d4-4786-8289-4d11bf0ea939?prompt=${encodedQuery}`;
       
       // Call the webhook
       const response = await fetch(webhookUrl);
