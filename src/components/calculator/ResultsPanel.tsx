@@ -5,9 +5,10 @@ import { SavingsGoal } from "@/lib/types";
 
 type ResultsPanelProps = {
   goal: SavingsGoal | null;
+  rawResponse: any | null;
 };
 
-const ResultsPanel = ({ goal }: ResultsPanelProps) => {
+const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
   if (!goal) return null;
 
   const completionDate = goal.deadline 
@@ -25,6 +26,11 @@ const ResultsPanel = ({ goal }: ResultsPanelProps) => {
           <PiggyBank className="mr-2 h-5 w-5" />
           Resultados para: {goal.name}
         </h3>
+        {rawResponse && (
+          <p className="text-sm text-gray-500 mt-1">
+            Datos calculados basados en tu consulta
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -37,7 +43,7 @@ const ResultsPanel = ({ goal }: ResultsPanelProps) => {
             <div>
               <h4 className="text-sm font-medium text-gray-500">Ahorro Mensual</h4>
               <p className="text-xl font-bold text-finance-blue">
-                {formatCurrency(goal.monthlySavingAmount || 0)}
+                {rawResponse ? formatCurrency(rawResponse["Cantidad mensual de ahorro requerida"]) : formatCurrency(goal.monthlySavingAmount || 0)}
               </p>
             </div>
           </div>
@@ -73,7 +79,7 @@ const ResultsPanel = ({ goal }: ResultsPanelProps) => {
             <div>
               <h4 className="text-sm font-medium text-gray-500">Fecha Proyectada</h4>
               <p className="text-xl font-bold text-blue-600">
-                {completionDate}
+                {rawResponse ? rawResponse["Fecha proyectada de finalización"] : completionDate}
               </p>
             </div>
           </div>
@@ -100,6 +106,16 @@ const ResultsPanel = ({ goal }: ResultsPanelProps) => {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Debug section - opcional, puedes eliminar en producción */}
+      {rawResponse && process.env.NODE_ENV === 'development' && (
+        <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+          <h4 className="text-sm font-semibold mb-2">Respuesta del Webhook:</h4>
+          <pre className="text-xs overflow-auto max-h-60">
+            {JSON.stringify(rawResponse, null, 2)}
+          </pre>
         </div>
       )}
     </div>

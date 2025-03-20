@@ -17,6 +17,7 @@ const SavingsCalculator = () => {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SavingsGoal | null>(null);
+  const [rawResponse, setRawResponse] = useState<WebhookResponse | null>(null);
   
   // Set page title
   useEffect(() => {
@@ -26,6 +27,8 @@ const SavingsCalculator = () => {
   const handleSubmit = async (userQuery: string) => {
     setQuery(userQuery);
     setLoading(true);
+    setResult(null);
+    setRawResponse(null);
     
     try {
       // Encode the query for URL
@@ -40,6 +43,10 @@ const SavingsCalculator = () => {
       }
       
       const data: WebhookResponse = await response.json();
+      console.log("Webhook response:", data);
+      
+      // Guarda la respuesta original
+      setRawResponse(data);
       
       // Extract purpose from query
       let purpose = "tu meta financiera";
@@ -58,27 +65,37 @@ const SavingsCalculator = () => {
       const recommendations: string[] = [];
       const recsData = data["Recomendaciones de reducción de gastos"];
       
-      Object.keys(recsData).forEach(key => {
-        const item = recsData[key];
-        if (typeof item === 'string') {
-          recommendations.push(item);
-        } else if (typeof item === 'object' && item !== null) {
-          if ('sugerencia' in item && typeof item.sugerencia === 'string') {
-            recommendations.push(item.sugerencia);
-          } else if ('categoria' in item && 'sugerencia' in item) {
-            recommendations.push(`${item.categoria}: ${item.sugerencia}`);
+      if (recsData) {
+        Object.keys(recsData).forEach(key => {
+          const item = recsData[key];
+          if (typeof item === 'string') {
+            recommendations.push(item);
+          } else if (typeof item === 'object' && item !== null) {
+            if ('sugerencia' in item && typeof item.sugerencia === 'string') {
+              recommendations.push(item.sugerencia);
+            } else if ('categoria' in item && 'sugerencia' in item) {
+              const categoria = item.categoria;
+              const sugerencia = item.sugerencia;
+              if (typeof categoria === 'string' && typeof sugerencia === 'string') {
+                recommendations.push(`${categoria}: ${sugerencia}`);
+              }
+            }
           }
-        }
-      });
+        });
+      }
       
       // Create date object from the string date
       const dateStr = data["Fecha proyectada de finalización"];
       const dateParts = dateStr.split('/');
-      const targetDate = new Date(
-        parseInt(dateParts[2]), // Year
-        parseInt(dateParts[1]) - 1, // Month (0-indexed)
-        parseInt(dateParts[0]) // Day
-      );
+      let targetDate: Date | undefined;
+      
+      if (dateParts.length === 3) {
+        targetDate = new Date(
+          parseInt(dateParts[2]), // Year
+          parseInt(dateParts[1]) - 1, // Month (0-indexed)
+          parseInt(dateParts[0]) // Day
+        );
+      }
       
       // Create result object
       const savingsGoal: SavingsGoal = {
@@ -117,7 +134,7 @@ const SavingsCalculator = () => {
         <div className="space-y-6">
           <QueryInput onSubmit={handleSubmit} isLoading={loading} />
           
-          {result && <ResultsPanel goal={result} />}
+          {result && <ResultsPanel goal={result} rawResponse={rawResponse} />}
         </div>
       </div>
     </div>
