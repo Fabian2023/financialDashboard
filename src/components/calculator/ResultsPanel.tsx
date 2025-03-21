@@ -11,7 +11,7 @@ type ResultsPanelProps = {
 const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
   if (!goal) return null;
 
-  // Intentar obtener la fecha desde el webhook directamente si está disponible
+  // Get the formatted completion date
   let completionDate = 'Fecha no disponible';
   
   if (rawResponse && rawResponse["Fecha proyectada de finalización"]) {
@@ -24,6 +24,13 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
     }).format(goal.deadline);
   }
 
+  // Format recommendations for display
+  const displayRecommendations = goal.recommendations?.filter(rec => 
+    rec && rec.trim() !== '' && 
+    !rec.includes('undefined') && 
+    !rec.toLowerCase().includes('no hay')
+  );
+
   return (
     <div className="card-glass p-6 animate-scale-in">
       <div className="mb-6">
@@ -31,11 +38,9 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
           <PiggyBank className="mr-2 h-5 w-5" />
           Resultados para: {goal.name}
         </h3>
-        {rawResponse && (
-          <p className="text-sm text-gray-500 mt-1">
-            Datos calculados basados en tu consulta
-          </p>
-        )}
+        <p className="text-sm text-gray-500 mt-1">
+          Datos calculados basados en tu consulta
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -97,14 +102,14 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
       </div>
 
       {/* Recommendations */}
-      {goal.recommendations && goal.recommendations.length > 0 && (
+      {displayRecommendations && displayRecommendations.length > 0 && (
         <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm mb-2">
           <h4 className="text-base font-semibold flex items-center mb-4 text-finance-blue">
             <TrendingDown className="mr-2 h-5 w-5" />
             Recomendaciones para Optimizar tus Ahorros
           </h4>
           <ul className="space-y-3">
-            {goal.recommendations.map((recommendation, index) => (
+            {displayRecommendations.map((recommendation, index) => (
               <li key={index} className="flex items-start">
                 <div className="min-w-6 h-6 rounded-full bg-finance-blue/10 flex items-center justify-center text-finance-blue font-medium text-xs mr-3 mt-0.5">
                   {index + 1}
@@ -116,10 +121,10 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
         </div>
       )}
 
-      {/* Raw Response - for troubleshooting */}
-      {rawResponse && (
+      {/* Raw Response - hidden in production */}
+      {rawResponse && process.env.NODE_ENV === 'development' && (
         <div className="mt-6 p-4 bg-gray-100 rounded-lg">
-          <h4 className="text-sm font-semibold mb-2">Respuesta del Webhook:</h4>
+          <h4 className="text-sm font-semibold mb-2">Respuesta del Webhook (Debug):</h4>
           <pre className="text-xs overflow-auto max-h-60">
             {JSON.stringify(rawResponse, null, 2)}
           </pre>

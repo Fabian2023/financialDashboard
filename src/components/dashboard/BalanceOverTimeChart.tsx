@@ -18,6 +18,12 @@ const BalanceOverTimeChart = ({ data }: BalanceOverTimeChartProps) => {
     );
   }
 
+  // Format data for the chart
+  const chartData = [...data].sort((a, b) => a.month.localeCompare(b.month));
+  
+  // Log the data being used for the chart
+  console.log("Balance chart data:", chartData);
+
   return (
     <div className="h-full flex flex-col">
       <h3 className="text-base md:text-lg font-medium mb-4">Evolución del Balance</h3>
@@ -25,7 +31,7 @@ const BalanceOverTimeChart = ({ data }: BalanceOverTimeChartProps) => {
       <div className="flex-1 min-h-[250px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={data}
+            data={chartData}
             margin={{
               top: 5,
               right: 30,
@@ -41,14 +47,20 @@ const BalanceOverTimeChart = ({ data }: BalanceOverTimeChartProps) => {
               axisLine={{ stroke: '#E0E0E0' }}
             />
             <YAxis 
-              tickFormatter={(value) => `${value/1000}k`}
+              tickFormatter={(value) => `${Math.round(value/1000)}k`}
               tickLine={false}
               axisLine={{ stroke: '#E0E0E0' }}
+              width={60}
             />
             <Tooltip
               formatter={(value: number) => formatCurrency(value)}
               labelFormatter={(label) => `Mes: ${label}`}
-              contentStyle={{ backgroundColor: 'white', border: '1px solid #E0E0E0' }}
+              contentStyle={{ 
+                backgroundColor: 'white', 
+                border: '1px solid #E0E0E0',
+                borderRadius: '8px',
+                padding: '8px 12px'
+              }}
             />
             <Line 
               type="monotone" 
@@ -59,6 +71,7 @@ const BalanceOverTimeChart = ({ data }: BalanceOverTimeChartProps) => {
               activeDot={{ r: 6, fill: '#1A5F7A' }}
               animationDuration={2000}
               isAnimationActive={true}
+              name="Balance Mensual"
             />
           </LineChart>
         </ResponsiveContainer>

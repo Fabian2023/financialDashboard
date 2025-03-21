@@ -32,10 +32,15 @@ const SavingsCalculator = () => {
     setRawResponse(null);
     
     try {
+      // Log the query to help with debugging
+      console.log("Submitting query:", userQuery);
+      
       // Encode the query for URL
       const encodedQuery = encodeURIComponent(userQuery);
-      // Updated to webhook-test URL
+      // Use the webhook-test URL
       const webhookUrl = `https://fabian40.app.n8n.cloud/webhook-test/4f878eb8-15d4-4786-8289-4d11bf0ea939?prompt=${encodedQuery}`;
+      
+      console.log("Calling webhook URL:", webhookUrl);
       
       // Call the webhook
       const response = await fetch(webhookUrl);
@@ -58,10 +63,27 @@ const SavingsCalculator = () => {
       }
       
       // Parse amount from user query to use as target amount
-      const amountMatch = userQuery.match(/\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d+)/);
-      const targetAmount = amountMatch 
-        ? parseInt(amountMatch[1].replace(/[.,]/g, "")) 
-        : 5000000;
+      let targetAmount = 5000000; // Default value
+      const amountMatch = userQuery.match(/\$?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d+)\s*(mil|millon|millones)?/i);
+      
+      if (amountMatch) {
+        console.log("Amount match:", amountMatch);
+        // Get the base numeric value
+        let baseAmount = parseFloat(amountMatch[1].replace(/[.,]/g, ""));
+        
+        // Apply multiplier if specified
+        const multiplier = amountMatch[2]?.toLowerCase();
+        if (multiplier) {
+          if (multiplier.includes('mil')) {
+            baseAmount *= 1000;
+          } else if (multiplier.includes('millon')) {
+            baseAmount *= 1000000;
+          }
+        }
+        
+        targetAmount = baseAmount;
+        console.log("Parsed target amount:", targetAmount);
+      }
       
       // Format recommendations from webhook response
       const recommendations: string[] = [];
@@ -69,6 +91,7 @@ const SavingsCalculator = () => {
       // Process recommendations regardless of format
       if (data["Recomendaciones de reducción de gastos"]) {
         const recsData = data["Recomendaciones de reducción de gastos"];
+        console.log("Processing recommendations:", recsData);
         
         if (recsData) {
           Object.entries(recsData).forEach(([key, value]) => {
@@ -80,20 +103,29 @@ const SavingsCalculator = () => {
                   ? value.categoria 
                   : key;
                 recommendations.push(`${categoria}: ${value.sugerencia}`);
+              } else {
+                // Try to extract meaningful information from the object
+                const objStr = JSON.stringify(value).replace(/[{}"]/g, '');
+                if (objStr.length > 0) {
+                  recommendations.push(`${key}: ${objStr}`);
+                }
               }
             }
           });
         }
       } else if (data.output) {
         // Handle free text output format
-        const recs = data.output.split('\n').filter(line => 
-          line.includes('-') && (line.includes('gasto') || line.includes('ahorro'))
+        console.log("Parsing output string for recommendations");
+        const outputLines = data.output.split('\n');
+        const recs = outputLines.filter(line => 
+          line.includes('-') || line.includes('•') || (line.includes('gasto') || line.includes('ahorro'))
         );
         recommendations.push(...recs.map(rec => rec.trim()));
       }
       
       if (recommendations.length === 0) {
         // Fallback recommendations if none are provided
+        console.log("Using fallback recommendations");
         recommendations.push(
           "Reduce gastos en entretenimiento en un 15% para aumentar tu capacidad de ahorro.",
           "Considera usar una cuenta de ahorro con mayor rendimiento para tu meta.",
@@ -142,6 +174,7 @@ const SavingsCalculator = () => {
         recommendations: recommendations
       };
       
+      console.log("Created savings goal:", savingsGoal);
       setResult(savingsGoal);
     } catch (error) {
       console.error("Error fetching data from webhook:", error);
