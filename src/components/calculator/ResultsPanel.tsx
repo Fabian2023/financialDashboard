@@ -11,13 +11,18 @@ type ResultsPanelProps = {
 const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
   if (!goal) return null;
 
-  const completionDate = goal.deadline 
-    ? new Intl.DateTimeFormat('es-CO', { 
-        day: 'numeric',
-        month: 'long', 
-        year: 'numeric' 
-      }).format(goal.deadline)
-    : 'Fecha no disponible';
+  // Intentar obtener la fecha desde el webhook directamente si está disponible
+  let completionDate = 'Fecha no disponible';
+  
+  if (rawResponse && rawResponse["Fecha proyectada de finalización"]) {
+    completionDate = rawResponse["Fecha proyectada de finalización"];
+  } else if (goal.deadline) {
+    completionDate = new Intl.DateTimeFormat('es-CO', { 
+      day: 'numeric',
+      month: 'long', 
+      year: 'numeric' 
+    }).format(goal.deadline);
+  }
 
   return (
     <div className="card-glass p-6 animate-scale-in">
@@ -43,7 +48,7 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
             <div>
               <h4 className="text-sm font-medium text-gray-500">Ahorro Mensual</h4>
               <p className="text-xl font-bold text-finance-blue">
-                {rawResponse && rawResponse["Cantidad mensual de ahorro requerida"] 
+                {rawResponse && rawResponse["Cantidad mensual de ahorro requerida"] !== undefined 
                   ? formatCurrency(rawResponse["Cantidad mensual de ahorro requerida"]) 
                   : formatCurrency(goal.monthlySavingAmount || 0)}
               </p>
@@ -81,9 +86,7 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
             <div>
               <h4 className="text-sm font-medium text-gray-500">Fecha Proyectada</h4>
               <p className="text-xl font-bold text-blue-600">
-                {rawResponse && rawResponse["Fecha proyectada de finalización"] 
-                  ? rawResponse["Fecha proyectada de finalización"] 
-                  : completionDate}
+                {completionDate}
               </p>
             </div>
           </div>
@@ -113,8 +116,8 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
         </div>
       )}
 
-      {/* Debug section - for development only */}
-      {rawResponse && process.env.NODE_ENV === 'development' && (
+      {/* Debug section - display in any environment for troubleshooting */}
+      {rawResponse && (
         <div className="mt-6 p-4 bg-gray-100 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Respuesta del Webhook:</h4>
           <pre className="text-xs overflow-auto max-h-60">

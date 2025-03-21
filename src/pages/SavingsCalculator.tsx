@@ -97,27 +97,37 @@ const SavingsCalculator = () => {
         }
       }
       
-      // Create date object if we have a date string
+      // Handle the date properly
       let targetDate: Date | undefined;
       
       if (data["Fecha proyectada de finalización"]) {
-        // Just use the string directly, we'll handle formatting in the ResultsPanel
         const dateStr = data["Fecha proyectada de finalización"];
+        console.log("Date from webhook:", dateStr);
         
-        // Try to parse it as a date if it looks like a date format
+        // Try different date formats
         if (dateStr.includes('/')) {
           const dateParts = dateStr.split('/');
           if (dateParts.length === 3) {
-            targetDate = new Date(
-              parseInt(dateParts[2]), // Year
-              parseInt(dateParts[1]) - 1, // Month (0-indexed)
-              parseInt(dateParts[0]) // Day
-            );
+            // Format DD/MM/YYYY
+            const day = parseInt(dateParts[0]);
+            const month = parseInt(dateParts[1]) - 1;
+            const year = parseInt(dateParts[2]);
+            
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+              targetDate = new Date(year, month, day);
+              console.log("Parsed date:", targetDate);
+            }
+          }
+        } else {
+          // Try standard date parsing as fallback
+          const parsedDate = new Date(dateStr);
+          if (!isNaN(parsedDate.getTime())) {
+            targetDate = parsedDate;
           }
         }
       }
       
-      // Create result object with a fallback for monthly savings amount
+      // Create result object with values from webhook
       const savingsGoal: SavingsGoal = {
         id: "goal-1",
         name: purpose,
