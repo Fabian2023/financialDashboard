@@ -116,7 +116,7 @@ const ResultsPanel = ({ goal, rawResponse }: ResultsPanelProps) => {
         </div>
       )}
 
-      {/* Debug section - display in any environment for troubleshooting */}
+      {/* Raw Response - for troubleshooting */}
       {rawResponse && (
         <div className="mt-6 p-4 bg-gray-100 rounded-lg">
           <h4 className="text-sm font-semibold mb-2">Respuesta del Webhook:</h4>

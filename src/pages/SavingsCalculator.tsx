@@ -34,8 +34,8 @@ const SavingsCalculator = () => {
     try {
       // Encode the query for URL
       const encodedQuery = encodeURIComponent(userQuery);
-      // Updated to production webhook URL
-      const webhookUrl = `https://fabian40.app.n8n.cloud/webhook/4f878eb8-15d4-4786-8289-4d11bf0ea939?prompt=${encodedQuery}`;
+      // Updated to webhook-test URL
+      const webhookUrl = `https://fabian40.app.n8n.cloud/webhook-test/4f878eb8-15d4-4786-8289-4d11bf0ea939?prompt=${encodedQuery}`;
       
       // Call the webhook
       const response = await fetch(webhookUrl);
@@ -66,35 +66,39 @@ const SavingsCalculator = () => {
       // Format recommendations from webhook response
       const recommendations: string[] = [];
       
-      // Check which format we received and process accordingly
-      if (data.output) {
+      // Process recommendations regardless of format
+      if (data["Recomendaciones de reducción de gastos"]) {
+        const recsData = data["Recomendaciones de reducción de gastos"];
+        
+        if (recsData) {
+          Object.entries(recsData).forEach(([key, value]) => {
+            if (typeof value === 'string') {
+              recommendations.push(`${key}: ${value}`);
+            } else if (typeof value === 'object' && value !== null) {
+              if ('sugerencia' in value && typeof value.sugerencia === 'string') {
+                const categoria = 'categoria' in value && typeof value.categoria === 'string' 
+                  ? value.categoria 
+                  : key;
+                recommendations.push(`${categoria}: ${value.sugerencia}`);
+              }
+            }
+          });
+        }
+      } else if (data.output) {
         // Handle free text output format
         const recs = data.output.split('\n').filter(line => 
           line.includes('-') && (line.includes('gasto') || line.includes('ahorro'))
         );
         recommendations.push(...recs.map(rec => rec.trim()));
-      } else if (data["Recomendaciones de reducción de gastos"]) {
-        // Handle structured format
-        const recsData = data["Recomendaciones de reducción de gastos"];
-        
-        if (recsData) {
-          Object.keys(recsData).forEach(key => {
-            const item = recsData[key];
-            if (typeof item === 'string') {
-              recommendations.push(item);
-            } else if (typeof item === 'object' && item !== null) {
-              if ('sugerencia' in item && typeof item.sugerencia === 'string') {
-                recommendations.push(item.sugerencia);
-              } else if ('categoria' in item && 'sugerencia' in item) {
-                const categoria = item.categoria;
-                const sugerencia = item.sugerencia;
-                if (typeof categoria === 'string' && typeof sugerencia === 'string') {
-                  recommendations.push(`${categoria}: ${sugerencia}`);
-                }
-              }
-            }
-          });
-        }
+      }
+      
+      if (recommendations.length === 0) {
+        // Fallback recommendations if none are provided
+        recommendations.push(
+          "Reduce gastos en entretenimiento en un 15% para aumentar tu capacidad de ahorro.",
+          "Considera usar una cuenta de ahorro con mayor rendimiento para tu meta.",
+          "Establece transferencias automáticas mensuales por el monto calculado."
+        );
       }
       
       // Handle the date properly
@@ -135,11 +139,7 @@ const SavingsCalculator = () => {
         currentAmount: 0,
         deadline: targetDate,
         monthlySavingAmount: data["Cantidad mensual de ahorro requerida"] || 0,
-        recommendations: recommendations.length > 0 ? recommendations : [
-          "Reduce gastos en entretenimiento en un 15% para aumentar tu capacidad de ahorro.",
-          "Considera usar una cuenta de ahorro con mayor rendimiento para tu meta.",
-          "Establece transferencias automáticas mensuales por el monto calculado."
-        ]
+        recommendations: recommendations
       };
       
       setResult(savingsGoal);
